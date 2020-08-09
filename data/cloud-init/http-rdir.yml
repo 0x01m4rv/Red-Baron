@@ -1,0 +1,37 @@
+#cloud-config
+# Templated with Terraform templatefile
+
+groups:
+  - docker
+
+# add each entry to ~/.ssh/authorized_keys for the configured user or the
+# first user defined in the user definition directive.
+ssh_authorized_keys:
+  - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCr9OfbOUZ9q6m9pXZAj74MRWpvkbCSlc72ndQUjNk+AKfQSNW5hz2C6bW+g33f9mO2Y+XSe+dox2bhDJBujmgzBmTfpcGq/txvLYVbsYI2W2MjeezjOyBOs6sbfZCtWA4BJdI5P53fdJNDdyNuiuoKAeL1cUnm/i9fOY83wvCe8ILEq/iJO7l9Q5NRO8O6D//M0kJjiwsETNwFA/F+6eMjS3o68M3phrK78iw+T7EWtk4CNxeHhhqouZ3XQtgbJVLowy7ffhpYNlkjm4/KrmY1bHf25r1JnPCvfW2BKX3mS4FxCAUvgQ4iJ+A/Gv7UlX1NsZ8Zk43a2GOWqcWTBc// berne@LAPTOP-RSH1JKF0
+  - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFv60/E2ObBEBnhSN9OeMO58QruWrtcDGvy2je8ntyXA berne@elttam
+  - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCnlUD7G5X58i4X+51j5pJtPxNLc0/QQ4aLSdrBSZu5hflHHUUxgerHTSADPKNErz86R6e70MHSdaIXyZLC7NN9dTNpikMCwiKnrooZlodAPNehtiSoHzOeaTVvkQ40To8GhJCYPPr0DQ2JLZPlLtqDBi4Kk9ZtKr2a48KZGQ4sHGGO62TPTnk/UnAJjjkMX+MPslHaZs6QTWUH9+tp1rj0ZaDJM2Rr8PP5JJgutGT9RZSKazKTBRm8a1x2hme7DuYszAKbM3/mEgr2uod472AIaPWtdqr4lHpFqB3bmpI0NIVLecjUwlZsUn2QRZjRqdau7q6e4Zu2FBq4lTNUpsef fd-ad-prep.pem
+
+# automatically updates /etc/hosts
+hostname: http-rdir-${name}-${index}
+
+# chrony is already running
+timezone: Australia/Sydney
+
+users:
+  - default
+  - name: ben
+    groups: adm, dialout, cdrom, floppy, sudo, audio, dip, video, plugdev, netdev, docker
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      # Debian doesn't suport ED25519 but I'm adding it anyway...
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFv60/E2ObBEBnhSN9OeMO58QruWrtcDGvy2je8ntyXA berne@elttam
+      # Need this because debian...
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCr9OfbOUZ9q6m9pXZAj74MRWpvkbCSlc72ndQUjNk+AKfQSNW5hz2C6bW+g33f9mO2Y+XSe+dox2bhDJBujmgzBmTfpcGq/txvLYVbsYI2W2MjeezjOyBOs6sbfZCtWA4BJdI5P53fdJNDdyNuiuoKAeL1cUnm/i9fOY83wvCe8ILEq/iJO7l9Q5NRO8O6D//M0kJjiwsETNwFA/F+6eMjS3o68M3phrK78iw+T7EWtk4CNxeHhhqouZ3XQtgbJVLowy7ffhpYNlkjm4/KrmY1bHf25r1JnPCvfW2BKX3mS4FxCAUvgQ4iJ+A/Gv7UlX1NsZ8Zk43a2GOWqcWTBc// berne@LAPTOP-RSH1JKF0
+
+  - name: brendan
+    groups: adm, dialout, cdrom, floppy, sudo, audio, dip, video, plugdev, netdev, docker
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCnlUD7G5X58i4X+51j5pJtPxNLc0/QQ4aLSdrBSZu5hflHHUUxgerHTSADPKNErz86R6e70MHSdaIXyZLC7NN9dTNpikMCwiKnrooZlodAPNehtiSoHzOeaTVvkQ40To8GhJCYPPr0DQ2JLZPlLtqDBi4Kk9ZtKr2a48KZGQ4sHGGO62TPTnk/UnAJjjkMX+MPslHaZs6QTWUH9+tp1rj0ZaDJM2Rr8PP5JJgutGT9RZSKazKTBRm8a1x2hme7DuYszAKbM3/mEgr2uod472AIaPWtdqr4lHpFqB3bmpI0NIVLecjUwlZsUn2QRZjRqdau7q6e4Zu2FBq4lTNUpsef fd-ad-prep.pem

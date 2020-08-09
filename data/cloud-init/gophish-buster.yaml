@@ -1,0 +1,161 @@
+#cloud-config
+# Templated with Terraform templatefile
+
+groups:
+  - docker
+
+# add each entry to ~/.ssh/authorized_keys for the configured user or the
+# first user defined in the user definition directive.
+ssh_authorized_keys:
+  - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCr9OfbOUZ9q6m9pXZAj74MRWpvkbCSlc72ndQUjNk+AKfQSNW5hz2C6bW+g33f9mO2Y+XSe+dox2bhDJBujmgzBmTfpcGq/txvLYVbsYI2W2MjeezjOyBOs6sbfZCtWA4BJdI5P53fdJNDdyNuiuoKAeL1cUnm/i9fOY83wvCe8ILEq/iJO7l9Q5NRO8O6D//M0kJjiwsETNwFA/F+6eMjS3o68M3phrK78iw+T7EWtk4CNxeHhhqouZ3XQtgbJVLowy7ffhpYNlkjm4/KrmY1bHf25r1JnPCvfW2BKX3mS4FxCAUvgQ4iJ+A/Gv7UlX1NsZ8Zk43a2GOWqcWTBc// berne@LAPTOP-RSH1JKF0
+  - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFv60/E2ObBEBnhSN9OeMO58QruWrtcDGvy2je8ntyXA berne@elttam
+  - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCnlUD7G5X58i4X+51j5pJtPxNLc0/QQ4aLSdrBSZu5hflHHUUxgerHTSADPKNErz86R6e70MHSdaIXyZLC7NN9dTNpikMCwiKnrooZlodAPNehtiSoHzOeaTVvkQ40To8GhJCYPPr0DQ2JLZPlLtqDBi4Kk9ZtKr2a48KZGQ4sHGGO62TPTnk/UnAJjjkMX+MPslHaZs6QTWUH9+tp1rj0ZaDJM2Rr8PP5JJgutGT9RZSKazKTBRm8a1x2hme7DuYszAKbM3/mEgr2uod472AIaPWtdqr4lHpFqB3bmpI0NIVLecjUwlZsUn2QRZjRqdau7q6e4Zu2FBq4lTNUpsef fd-ad-prep.pem
+
+# automatically updates /etc/hosts
+hostname: gophish-${name}-${index}
+
+# chrony is already running
+timezone: Australia/Sydney
+
+users:
+  - default
+  - name: ben
+    groups: adm, dialout, cdrom, floppy, sudo, audio, dip, video, plugdev, netdev, docker
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      # Debian doesn't suport ED25519 but I'm adding it anyway...
+      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFv60/E2ObBEBnhSN9OeMO58QruWrtcDGvy2je8ntyXA berne@elttam
+      # Need this because debian...
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCr9OfbOUZ9q6m9pXZAj74MRWpvkbCSlc72ndQUjNk+AKfQSNW5hz2C6bW+g33f9mO2Y+XSe+dox2bhDJBujmgzBmTfpcGq/txvLYVbsYI2W2MjeezjOyBOs6sbfZCtWA4BJdI5P53fdJNDdyNuiuoKAeL1cUnm/i9fOY83wvCe8ILEq/iJO7l9Q5NRO8O6D//M0kJjiwsETNwFA/F+6eMjS3o68M3phrK78iw+T7EWtk4CNxeHhhqouZ3XQtgbJVLowy7ffhpYNlkjm4/KrmY1bHf25r1JnPCvfW2BKX3mS4FxCAUvgQ4iJ+A/Gv7UlX1NsZ8Zk43a2GOWqcWTBc// berne@LAPTOP-RSH1JKF0
+
+  - name: brendan
+    #groups: adm, wheel, systemd-journal, docker
+    groups: adm, dialout, cdrom, floppy, sudo, audio, dip, video, plugdev, netdev, docker
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCnlUD7G5X58i4X+51j5pJtPxNLc0/QQ4aLSdrBSZu5hflHHUUxgerHTSADPKNErz86R6e70MHSdaIXyZLC7NN9dTNpikMCwiKnrooZlodAPNehtiSoHzOeaTVvkQ40To8GhJCYPPr0DQ2JLZPlLtqDBi4Kk9ZtKr2a48KZGQ4sHGGO62TPTnk/UnAJjjkMX+MPslHaZs6QTWUH9+tp1rj0ZaDJM2Rr8PP5JJgutGT9RZSKazKTBRm8a1x2hme7DuYszAKbM3/mEgr2uod472AIaPWtdqr4lHpFqB3bmpI0NIVLecjUwlZsUn2QRZjRqdau7q6e4Zu2FBq4lTNUpsef fd-ad-prep.pem
+
+# this implies `package_update: true`
+#package_upgrade: true
+
+# this implies `package_update: true`
+packages:
+  - apache2
+  - apache2-utils
+  - certbot
+  - curl
+  - jq
+  - mosh
+  - rsync
+  - sqlite
+  - tmux
+  - unzip
+
+write_files:
+  - path: /lib/systemd/system/gophish.service
+    owner: root:root
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Gophish service
+      After=network-online.target
+
+      [Service]
+      Environment="GOPHISH_BIN_PATH=/opt/gophish/"
+      Environment="GOPHISH_LOG_PATH=/opt/gophish/log/"
+      ExecStart=/bin/bash /opt/gophish/gophish_service.sh
+
+      AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+      [Install]
+      WantedBy=multi-user.target
+  - path: /opt/gophish/gophish_service.sh
+    owner: root:root
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+
+      GOPHISH_LOG_FILE=gophish.log
+      GOPHISH_ERR_FILE=gophish.err
+
+      check_bin_path() {
+          if [[ -z "$GOPHISH_BIN_PATH" ]]; then
+              exit 1
+          fi
+      }
+
+      check_log_path() {
+          if [[ -z "$GOPHISH_LOG_PATH" ]]; then
+              exit 2
+          fi
+      }
+
+      create_new_log_err() {
+          GOPHISH_STAMP=`date +%Y%m%d%H%M%S-%N`
+          if [[ -e $GOPHISH_LOG_PATH$GOPHISH_LOG_FILE ]]; then
+              mv $GOPHISH_LOG_PATH$GOPHISH_LOG_FILE $GOPHISH_LOG_PATH$GOPHISH_LOG_FILE-$GOPHISH_STAMP
+          fi
+
+          if [[ -e $GOPHISH_LOG_PATH$GOPHISH_ERR_FILE ]]; then
+              mv $GOPHISH_LOG_PATH$GOPHISH_ERR_FILE $GOPHISH_LOG_PATH$GOPHISH_ERR_FILE-$GOPHISH_STAMP
+          fi
+
+          touch $GOPHISH_LOG_PATH$GOPHISH_LOG_FILE
+          touch $GOPHISH_LOG_PATH$GOPHISH_ERR_FILE
+      }
+
+      launch_gophish() {
+          cd $GOPHISH_BIN_PATH
+          ./gophish >> $GOPHISH_LOG_PATH$GOPHISH_LOG_FILE 2>> $GOPHISH_LOG_PATH$GOPHISH_ERR_FILE
+      }
+
+      check_bin_path
+      check_log_path
+      create_new_log_err
+      launch_gophish
+
+  - path: /opt/gophish/gophish_changepassword.sh
+    owner: root:root
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+
+      # change the password of the GoPhish server to something random and output to the screen.
+      sudo apt -qq install -y sqlite apache2-utils
+
+      # create a random string password and salt value.
+      password=`sudo head /dev/urandom | tr -dc A-Za-z | head -c 13; echo ''`
+
+      hash=`htpasswd -bnBC 10 "" "$password" | tr -d ':\n' | sed 's/$2y/$2a/'`
+      echo "$password"
+
+      # place it in the SQLite Database
+      sudo sqlite3 /opt/gophish/gophish.db "update users set hash='$hash' where username='admin';"
+
+# Runs earlier than runcmd
+# Runs on every boot
+#bootcmd:
+#  - echo
+# Runs only on first boot
+
+runcmd:
+  # running as root
+  #- id
+  #- uptime
+  - a2enmod ssl
+  - systemctl stop apache2
+  # XXX drop privs
+  - curl -s "https://api.github.com/repos/gophish/gophish/releases/latest" | jq -r '.assets[] | select(.name | endswith("linux-64bit.zip" )).browser_download_url' | xargs curl -L -o /opt/gophish.zip --url
+  - unzip -qq /opt/gophish.zip -d /opt/gophish
+  - chmod +x /opt/gophish/gophish
+  - touch /opt/gophish/tmp.json
+  - jq '.admin_server.listen_url ="0.0.0.0:3333"' /opt/gophish/config.json | sudo tee /opt/gophish/tmp.json
+  - rm /opt/gophish/config.json && mv /opt/gophish/tmp.json /opt/gophish/config.json
+  - mkdir /opt/gophish/log/
+  - touch /opt/gophish/log/gophish.log
+  - touch /opt/gophish/log/gophish.err
+  - systemctl daemon-reload
+  - systemctl start gophish.service
+  - /opt/gophish/gophish_changepassword.sh
