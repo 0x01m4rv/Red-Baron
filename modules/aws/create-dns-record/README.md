@@ -24,7 +24,7 @@ module "create_a_record" {
 |`domain`                   | Yes      | String     | The domain to add records to
 |`type`                     | Yes      | String     | The record type to add. Valid values are A, AAAA, CAA, CNAME, MX, NAPTR, NS, PTR, SOA, SPF, SRV and TXT.
 |`records`                  | Yes      | Map        | A map of records to add. Domains as keys and IPs as values.
-|`count`                    | No       | Integer    | Number of records to add. Default value is 1
+|`count_records`            | No       | Integer    | Number of records to add. Default value is 1
 |`ttl`                      | No       | Integer    | The TTL of the record(s). Default value is 300
 
 # Outputs

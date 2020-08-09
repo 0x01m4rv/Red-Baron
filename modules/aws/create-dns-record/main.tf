@@ -7,7 +7,7 @@ data "aws_route53_zone" "selected" {
 }
 
 resource "aws_route53_record" "record" {
-  count = var.count_vm
+  count = var.count_records
 
   zone_id = data.aws_route53_zone.selected.zone_id
   name = element(keys(var.records), count.index)

@@ -2,7 +2,8 @@ variable "domain" {}
 
 variable "type" {}
 
-variable "count_vm" {
+variable "count_records" {
+  description = "Number of records to add."
   default = 1
 }
 

@@ -22,8 +22,8 @@ module "create_certs" {
 |---------------------------| -------- | ---------- | -----------
 |`domains`                  | Yes      | List       | The certificate's primary domain that the certificate will be recognized for.
 |`subject_alternative_names`| Yes      | Map        | The certificate's subject alternative domains that this certificate will also be recognized for.
-|`count`                    | No       | Integer    | Number of certificates to create. Defaults to 1.
-|`provider`                 | No       | String     | Provider to use for the DNS challenge. Defaults to "route53".
+|`count_certs`              | No       | Integer    | Number of certificates to create. Defaults to 1.
+|`dns_provider`             | No       | String     | Provider to use for the DNS challenge. Defaults to "route53".
 |`server_url`               | No       | String     | Registration server URL to use. Valid values are "staging" and "production". Defaults to "production".
 |`reg_email`                | No       | String     | Email to use for certificate registration. Defaults to "nobody@example.com"
 |`key_type`                 | No       | Integer    | The key type for the certificate's private key. Defaults to 4096.

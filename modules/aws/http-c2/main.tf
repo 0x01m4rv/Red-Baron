@@ -19,6 +19,7 @@ resource "aws_key_pair" "http-c2" {
   count = var.count_vm
   key_name = "http-c2-key-${count.index}"
   public_key = tls_private_key.ssh.*.public_key_openssh[count.index]
+  tags = var.tags
 }
 
 resource "aws_instance" "http-c2" {
@@ -29,10 +30,16 @@ resource "aws_instance" "http-c2" {
   //provider = "aws.${element(var.regions, count.index)}"
 
   count = var.count_vm
-  
-  tags = {
+
+  tags = merge(var.tags, {
     Name = "http-c2-${random_id.server.*.hex[count.index]}"
-  }
+  })
+  /*
+  volume_tags = merge(var.tags, {
+    Name = "http-c2-${random_id.server.*.hex[count.index]}"
+  })
+  */
+
 
   ami = var.amis[data.aws_region.current.name]
   instance_type = var.instance_type
@@ -41,24 +48,39 @@ resource "aws_instance" "http-c2" {
   subnet_id = var.subnet_id
   associate_public_ip_address = true
 
-  provisioner "remote-exec" {
-    scripts = concat(list("./data/scripts/core_deps.sh"), var.install)
-
-    connection {
-        host = self.public_ip
-        type = "ssh"
-        user = "admin"
-        private_key = tls_private_key.ssh.*.private_key_pem[count.index]
-    }
-  }
 
   provisioner "local-exec" {
-    command = "echo \"${tls_private_key.ssh.*.private_key_pem[count.index]}\" > ./data/ssh_keys/${self.public_ip} && echo \"${tls_private_key.ssh.*.public_key_openssh[count.index]}\" > ./data/ssh_keys/${self.public_ip}.pub && chmod 600 ./data/ssh_keys/*" 
+    command = "echo \"${tls_private_key.ssh.*.private_key_pem[count.index]}\" > ./data/ssh_keys/${self.public_ip} && echo \"${tls_private_key.ssh.*.public_key_openssh[count.index]}\" > ./data/ssh_keys/${self.public_ip}.pub && chmod 600 ./data/ssh_keys/*"
   }
 
   provisioner "local-exec" {
     when = destroy
     command = "rm ./data/ssh_keys/${self.public_ip}*"
+  }
+
+}
+
+resource "null_resource" "remote_provisioner" {
+  count = var.count_vm
+
+  triggers = {
+    instance_creation = aws_instance.http-c2.*.id[count.index]
+    install = join(",", var.install)
+    policy_sha1 = jsonencode({
+      for script in concat(list("./data/scripts/core_deps.sh"), var.install):
+        script => sha1(file(script))
+    })
+  }
+
+  provisioner "remote-exec" {
+    scripts = concat(list("./data/scripts/core_deps.sh"), var.install)
+
+    connection {
+        host = aws_instance.http-c2.*.public_ip[count.index]
+        type = "ssh"
+        user = "admin"
+        private_key = tls_private_key.ssh.*.private_key_pem[count.index]
+    }
   }
 
 }
@@ -92,10 +114,13 @@ data "template_file" "ssh_config" {
 
   template = file("./data/templates/ssh_config.tpl")
 
-  depends_on = [aws_instance.http-c2]
+  # Unnecessary, vars has implicit dependencies
+  # Best to avoid explicit dependencies, Terraform #21545 #17034
+  #depends_on = [aws_instance.http-c2]
 
   vars = {
-    name = "dns_rdir_${aws_instance.http-c2.*.public_ip[count.index]}"
+    #name = "http-c2-${aws_instance.http-c2.*.public_ip[count.index]}"
+    name = "http-c2-${count.index}"
     hostname = aws_instance.http-c2.*.public_ip[count.index]
     user = "admin"
     identityfile = "${path.root}/data/ssh_keys/${aws_instance.http-c2.*.public_ip[count.index]}"
@@ -110,15 +135,18 @@ resource "null_resource" "gen_ssh_config" {
   triggers = {
     template_rendered = data.template_file.ssh_config.*.rendered[count.index]
     server = random_id.server.*.hex[count.index]
+    file_name = "./data/ssh_configs/config_http-c2-${count.index}"
   }
 
   provisioner "local-exec" {
-    command = "echo '${data.template_file.ssh_config.*.rendered[count.index]}' > ./data/ssh_configs/config_${random_id.server.*.hex[count.index]}"
+    #command = "echo '${data.template_file.ssh_config.*.rendered[count.index]}' > ./data/ssh_configs/config_http-c2_${random_id.server.*.hex[count.index]}"
+    command = "echo '${data.template_file.ssh_config.*.rendered[count.index]}' > ${self.triggers.file_name}"
   }
 
   provisioner "local-exec" {
     when = destroy
-    command = "rm ./data/ssh_configs/config_${self.triggers.server}"
+    #command = "rm ./data/ssh_configs/config_${self.triggers.server}"
+    command = "rm ${self.triggers.file_name}"
   }
 
 }

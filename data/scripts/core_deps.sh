@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euxo pipefail
 
 # Sometimes running apt-get install on AWS seems to produce a 503 error from the debian mirrors
 # have absolutely zero clue what's going on, but just running the command again seems to fix it

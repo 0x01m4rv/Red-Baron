@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euxo pipefail
 
 CSTRIKE_KEY='xxxx-xxxx-xxxx-xxxx'
 

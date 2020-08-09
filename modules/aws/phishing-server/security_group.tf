@@ -15,7 +15,15 @@ resource "aws_security_group" "phishing-server" {
     from_port = 22
     to_port = 22
     protocol = "tcp"
-    cidr_blocks = ["${data.external.get_public_ip.result["ip"]}/32"]
+    #cidr_blocks = ["${data.external.get_public_ip.result["ip"]}/32"]
+    cidr_blocks = var.allow_cidr
+  }
+  ingress {
+    description = "gophish"
+    from_port = 3333
+    to_port = 3333
+    protocol = "tcp"
+    cidr_blocks = var.allow_cidr
   }
   ingress {
     from_port = 80
@@ -27,6 +35,13 @@ resource "aws_security_group" "phishing-server" {
                    "${linode_linode.http-rdir-3.ip_address}/32", 
                    "${var.my_ip}/32"]
     */
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  ingress {
+    description = "Serving implants"
+    from_port = 8080
+    to_port = 8082
+    protocol = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
   ingress {
@@ -46,6 +61,14 @@ resource "aws_security_group" "phishing-server" {
     from_port = 60000
     to_port = 61000
     protocol = "udp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  egress {
+    description = "SMTP"
+    from_port = 25
+    to_port = 25
+    protocol = "tcp"
+    # XXX could be limited
     cidr_blocks = ["0.0.0.0/0"]
   }
   egress {

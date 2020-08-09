@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euxo pipefail
 
 # I just want to point out it took longer to get Empire to install correctly than actually coding this whole freaking thing
 

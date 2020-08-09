@@ -12,6 +12,7 @@ resource "aws_vpc" "default" {
 
   cidr_block = "10.0.0.0/16"
   enable_dns_hostnames = true
+  tags = var.tags
 }
 
 resource "aws_subnet" "default" {
@@ -20,6 +21,7 @@ resource "aws_subnet" "default" {
 
   vpc_id = aws_vpc.default.id
   cidr_block = "10.0.0.0/24"
+  tags = var.tags
 }
 
 resource "aws_internet_gateway" "default" {
@@ -27,6 +29,7 @@ resource "aws_internet_gateway" "default" {
   //provider = "aws.${element(var.regions, count.index)}"
 
   vpc_id = aws_vpc.default.id
+  tags = var.tags
 }
 
 resource "aws_route_table" "default" {
@@ -34,6 +37,7 @@ resource "aws_route_table" "default" {
   //provider = "aws.${element(var.regions, count.index)}"
 
   vpc_id = aws_vpc.default.id
+  tags = var.tags
 
   route {
     cidr_block = "0.0.0.0/0"

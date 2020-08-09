@@ -7,15 +7,17 @@ data "external" "get_public_ip" {
 }
 
 resource "aws_security_group" "http-rdir" {
-  name = "http-rdir"
+  name = "http-rdir-${var.name}"
   description = "Security group created by Red Baron"
   vpc_id = var.vpc_id
+  tags = var.tags
 
   ingress {
     from_port = 22
     to_port = 22
     protocol = "tcp"
-    cidr_blocks = ["${data.external.get_public_ip.result["ip"]}/32"]
+    //cidr_blocks = ["${data.external.get_public_ip.result["ip"]}/32"]
+    cidr_blocks = var.allow_cidr
   }
   ingress {
     from_port = 80
@@ -27,6 +29,12 @@ resource "aws_security_group" "http-rdir" {
                    "${linode_linode.http-rdir-3.ip_address}/32", 
                    "${var.my_ip}/32"]
     */
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  ingress {
+    from_port = 8080
+    to_port = 8080
+    protocol = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
   ingress {
@@ -56,13 +64,13 @@ resource "aws_security_group" "http-rdir" {
   }
   egress {
     from_port = 80
-    to_port = 80
+    to_port = 83
     protocol = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
   egress {
     from_port = 443
-    to_port = 443
+    to_port = 444
     protocol = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }

@@ -1,5 +1,9 @@
+output "instance_ids" {
+  value = aws_instance.http-c2.*.id
+}
+
 output "ips" {
-  value = ["${aws_instance.http-c2.*.public_ip}"]
+  value = aws_instance.http-c2.*.public_ip
 }
 
 output "ssh_user" {

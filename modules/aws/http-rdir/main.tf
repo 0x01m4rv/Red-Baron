@@ -9,6 +9,7 @@ resource "random_id" "server" {
   byte_length = 4
 }
 
+/*
 resource "tls_private_key" "ssh" {
   count = var.count_vm
   algorithm = "RSA"
@@ -17,58 +18,109 @@ resource "tls_private_key" "ssh" {
 
 resource "aws_key_pair" "http-rdir" {
   count = var.count_vm
-  key_name = "http-rdir-key-${count.index}"  
+  key_name = "http-rdir-key-${count.index}"
   public_key = tls_private_key.ssh.*.public_key_openssh[count.index]
+  tags = var.tags
 }
+*/
 
 resource "aws_instance" "http-rdir" {
   // Currently, variables in provider fields are not supported :(
-  // This severely limits our ability to spin up instances in diffrent regions 
+  // This severely limits our ability to spin up instances in diffrent regions
   // https://github.com/hashicorp/terraform/issues/11578
 
   //provider = "aws.${element(var.regions, count.index)}"
 
   count = var.count_vm
-  
-  tags = {
-    Name = "http-rdir-${random_id.server.*.hex[count.index]}"
-  }
+
+  tags = merge( var.tags, {
+    Name = "http-rdir-${var.name}-${random_id.server.*.hex[count.index]}"
+  })
+  /*
+  volume_tags = merge( var.tags, {
+    Name = "http-rdir-${var.name}-${random_id.server.*.hex[count.index]}"
+  })
+  */
 
   ami = var.amis[data.aws_region.current.name]
   instance_type = var.instance_type
-  key_name = aws_key_pair.http-rdir.*.key_name[count.index]
+  //key_name = aws_key_pair.http-rdir.*.key_name[count.index]
+  key_name = var.key_name
   vpc_security_group_ids = ["${aws_security_group.http-rdir.id}"]
   subnet_id = var.subnet_id
   associate_public_ip_address = true
 
-  provisioner "remote-exec" {
-    inline = [
-      "sudo apt-get update",
-      "sudo apt-get install -y tmux socat apache2 mosh",
-      "sudo a2enmod rewrite proxy proxy_http ssl",
-      "sudo systemctl stop apache2",
-      "tmux new -d \"sudo socat TCP4-LISTEN:80,fork TCP4:${element(var.redirect_to, count.index)}:80\" ';' split \"sudo socat TCP4-LISTEN:443,fork TCP4:${element(var.redirect_to, count.index)}:443\""
-    ]
+  user_data = templatefile("data/cloud-init/http-rdir.yml", { name = var.name, index = count.index })
 
-    connection {
-        host = self.public_ip
-        type = "ssh"
-        user = "admin"
-        private_key = tls_private_key.ssh.*.private_key_pem[count.index]
-    }
-  }
-
+  /*
   provisioner "local-exec" {
-    command = "echo \"${tls_private_key.ssh.*.private_key_pem[count.index]}\" > ./data/ssh_keys/${self.public_ip} && echo \"${tls_private_key.ssh.*.public_key_openssh[count.index]}\" > ./data/ssh_keys/${self.public_ip}.pub && chmod 600 ./data/ssh_keys/*" 
+    command = "echo \"${tls_private_key.ssh.*.private_key_pem[count.index]}\" > ./data/ssh_keys/${self.public_ip} && echo \"${tls_private_key.ssh.*.public_key_openssh[count.index]}\" > ./data/ssh_keys/${self.public_ip}.pub && chmod 600 ./data/ssh_keys/*"
   }
 
   provisioner "local-exec" {
     when = destroy
     command = "rm ./data/ssh_keys/${self.public_ip}*"
   }
+  */
 
 }
 
+resource "null_resource" "remote_provisioner" {
+  count = var.count_vm
+
+  triggers = {
+    instance_creation = aws_instance.http-rdir.*.id[count.index]
+    /*
+    install = join(",", var.install)
+    policy_sha1 = jsonencode({
+      for script in concat(list("./data/scripts/core_deps.sh"), var.install):
+        script => sha1(file(script))
+    })
+    */
+  }
+
+  provisioner "file" {
+    source      = "data/files/terminfo"
+    destination = "/tmp/terminfo"
+
+    connection {
+      host = aws_instance.http-rdir.*.public_ip[count.index]
+      type = "ssh"
+      user = "admin"
+      #private_key = tls_private_key.ssh.*.private_key_pem[count.index]
+    }
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      # fucking debian nothing works!
+      #"set -euxo pipefail",
+      "set -eux",
+      "sudo apt-get update",
+      "sudo apt-get install -y tmux socat apache2 rsync mosh",
+      "sudo a2enmod rewrite proxy proxy_http ssl",
+      "sudo systemctl stop apache2",
+      # done by cloud-init
+      #"sudo hostnamectl set-hostname http-rdir-${var.name}-${count.index}",
+      #"sudo sed -i -e 's/^127.0.0.1 localhost$/127.0.0.1 localhost http-rdir-${var.name}-${count.index}/' /etc/hosts || true",
+      "sudo mv /tmp/terminfo/* /etc/terminfo/",
+      "echo \"#!/bin/sh\\nsudo socat TCP4-LISTEN:80,fork,reuseaddr TCP4:${element(var.redirect_to, count.index)}:80\" > socat-80.sh",
+      "echo \"#!/bin/sh\\nsudo socat TCP4-LISTEN:443,fork,reuseaddr TCP4:${element(var.redirect_to, count.index)}:443\" > socat-443.sh",
+      "echo \"#!/bin/sh\\ntmux new -d -s \\\"http-rdir-${var.name}-${count.index}\\\" \\\"./socat-80.sh\\\" ';' split \\\"./socat-443.sh\\\"\" >> tmux-socat.sh",
+      "chmod +x socat-80.sh socat-443.sh tmux-socat.sh",
+      "./tmux-socat.sh"
+    ]
+
+    connection {
+        host = aws_instance.http-rdir.*.public_ip[count.index]
+        type = "ssh"
+        user = "admin"
+        #private_key = tls_private_key.ssh.*.private_key_pem[count.index]
+    }
+  }
+
+
+}
 resource "null_resource" "ansible_provisioner" {
   count = signum(length(var.ansible_playbook)) == 1 ? var.count_vm : 0
 
@@ -98,13 +150,16 @@ data "template_file" "ssh_config" {
 
   template = file("./data/templates/ssh_config.tpl")
 
-  depends_on = [aws_instance.http-rdir]
+  # Unnecessary, vars has implicit dependencies
+  # Best to avoid explicit dependencies, Terraform #21545 #17034
+  #depends_on = [aws_instance.http-rdir]
 
   vars = {
-    name = "dns_rdir_${aws_instance.http-rdir.*.public_ip[count.index]}"
+    #name = "http_rdir_${aws_instance.http-rdir.*.public_ip[count.index]}"
+    name = "http_rdir_${var.name}-${count.index}"
     hostname = aws_instance.http-rdir.*.public_ip[count.index]
     user = "admin"
-    identityfile = "${path.root}/data/ssh_keys/${aws_instance.http-rdir.*.public_ip[count.index]}"
+    #identityfile = "${path.root}/data/ssh_keys/${aws_instance.http-rdir.*.public_ip[count.index]}"
   }
 
 }
@@ -116,15 +171,18 @@ resource "null_resource" "gen_ssh_config" {
   triggers = {
     template_rendered = data.template_file.ssh_config.*.rendered[count.index]
     server = random_id.server.*.hex[count.index]
+    file_name = "./data/ssh_configs/config_http_rdir_${var.name}-${count.index}"
   }
 
   provisioner "local-exec" {
-    command = "echo '${data.template_file.ssh_config.*.rendered[count.index]}' > ./data/ssh_configs/config_${random_id.server.*.hex[count.index]}"
+    #command = "echo '${data.template_file.ssh_config.*.rendered[count.index]}' > ./data/ssh_configs/config_${random_id.server.*.hex[count.index]}"
+    command = "echo '${data.template_file.ssh_config.*.rendered[count.index]}' > ${self.triggers.file_name}"
   }
 
   provisioner "local-exec" {
     when = destroy
-    command = "rm ./data/ssh_configs/config_${self.triggers.server}"
+    #command = "rm ./data/ssh_configs/config_${self.triggers.server}"
+    command = "rm ${self.triggers.file_name}"
   }
 
 }

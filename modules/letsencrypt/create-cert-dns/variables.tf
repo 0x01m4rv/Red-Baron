@@ -1,4 +1,6 @@
-variable "provider" {
+variable "dns_provider" {
+  type = string
+  default = "route53"
 }
 
 variable "domains" {
@@ -6,11 +8,13 @@ variable "domains" {
 }
 
 variable "subject_alternative_names" {
+  description = "List of alternative names"
   type = map(string)
   default = {}
 }
 
-variable "count_vm" {
+variable "count_certs" {
+  description = "Number of certificates to create."
   default = 1
 }
 
